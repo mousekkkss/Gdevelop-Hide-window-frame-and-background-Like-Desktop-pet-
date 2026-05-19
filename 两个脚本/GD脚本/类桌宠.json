@@ -1,0 +1,190 @@
+{
+  "author": "",
+  "category": "Advanced",
+  "extensionNamespace": "DesktopPet",
+  "fullName": "类桌宠 (Desktop Pet Window)",
+  "gdevelopVersion": "",
+  "helpPath": "",
+  "iconUrl": "",
+  "name": "DesktopPet",
+  "previewIconUrl": "",
+  "shortDescription": "把 GDevelop 桌面导出(Electron)的游戏窗口做成“桌宠”风格：透明背景、置顶、定位到屏幕角落等。",
+  "version": "1.0.0",
+  "description": "此扩展面向 Windows/macOS/Linux 的桌面导出（Electron）。\n\n可实现：\n- 让渲染背景变为透明（需要 Electron 窗口本身支持透明才能“透出桌面”）。\n- 把窗口移动并固定在屏幕角落/自定义坐标（支持多屏）。\n- 设置置顶、隐藏任务栏图标、点击穿透、隐藏菜单栏。\n\n重要限制：\n- Electron 的“真正无边框(frame:false)”与“真正透明(transparent:true)”通常需要在创建窗口时配置，无法完全依赖运行时脚本强行开启。扩展会尽力设置背景透明与隐藏菜单栏，但是否完全无边框/透出桌面取决于导出模板/窗口创建参数。",
+  "tags": [],
+  "authorIds": [],
+  "dependencies": [],
+  "globalVariables": [],
+  "sceneVariables": [],
+  "eventsFunctions": [
+    {
+      "description": "判断当前是否运行在桌面导出(Electron)环境中。",
+      "fullName": "是否为桌面导出(Electron)",
+      "functionType": "Condition",
+      "name": "IsElectron",
+      "sentence": "是桌面导出(Electron)",
+      "events": [
+        {
+          "type": "BuiltinCommonInstructions::JsCode",
+          "inlineCode": "const renderer = runtimeScene.getGame().getRenderer();\nconst hasRemote = !!(renderer && typeof renderer.getElectronRemote === 'function' && renderer.getElectronRemote());\neventsFunctionContext.returnValue = hasRemote;",
+          "parameterObjects": "",
+          "useStrict": true,
+          "eventsSheetExpanded": false
+        }
+      ],
+      "parameters": [],
+      "objectGroups": []
+    },
+    {
+      "description": "应用“桌宠窗口”常用设置：透明背景(渲染+DOM)、窗口置顶/隐藏任务栏/点击穿透/隐藏菜单栏，并把窗口移动到指定位置。",
+      "fullName": "应用桌宠窗口模式",
+      "functionType": "Action",
+      "name": "ApplyDesktopPetMode",
+      "sentence": "应用桌宠窗口模式：位置 _PARAM1_，角落偏移X _PARAM2_，角落偏移Y _PARAM3_，自定义X _PARAM4_，自定义Y _PARAM5_，置顶 _PARAM6_，隐藏任务栏 _PARAM7_，点击穿透 _PARAM8_，隐藏菜单栏 _PARAM9_",
+      "events": [
+        {
+          "type": "BuiltinCommonInstructions::JsCode",
+          "inlineCode": "const renderer = runtimeScene.getGame().getRenderer();\n\nconst setTransparentRendering = () => {\n  try {\n    if (renderer && typeof renderer.getPIXIRenderer === 'function') {\n      const pixiRenderer = renderer.getPIXIRenderer();\n      if (pixiRenderer) {\n        if (pixiRenderer.backgroundAlpha !== undefined) pixiRenderer.backgroundAlpha = 0;\n        if (pixiRenderer.background && pixiRenderer.background.alpha !== undefined) pixiRenderer.background.alpha = 0;\n        if (pixiRenderer.background && pixiRenderer.background.color !== undefined) pixiRenderer.background.color = 0x000000;\n        if (pixiRenderer.backgroundColor !== undefined) pixiRenderer.backgroundColor = 0x000000;\n      }\n    }\n  } catch (e) {}\n\n  try {\n    const html = document.documentElement;\n    const body = document.body;\n    if (html) {\n      html.style.backgroundColor = 'transparent';\n      html.style.background = 'transparent';\n    }\n    if (body) {\n      body.style.backgroundColor = 'transparent';\n      body.style.background = 'transparent';\n    }\n  } catch (e) {}\n};\n\nsetTransparentRendering();\n\nconst getElectronRemote = () => {\n  try {\n    if (renderer && typeof renderer.getElectronRemote === 'function') {\n      return renderer.getElectronRemote();\n    }\n  } catch (e) {}\n  return null;\n};\n\nconst getElectron = () => {\n  try {\n    if (renderer && typeof renderer.getElectron === 'function') {\n      return renderer.getElectron();\n    }\n  } catch (e) {}\n  return null;\n};\n\nconst remote = getElectronRemote();\nif (!remote) {\n  return;\n}\n\nconst win = remote.getCurrentWindow();\nconst electron = getElectron();\nconst screen = (electron && electron.screen) || null;\n\nconst position = '' + eventsFunctionContext.getArgument('Position');\nconst cornerOffsetX = Number(eventsFunctionContext.getArgument('CornerOffsetX')) || 0;\nconst cornerOffsetY = Number(eventsFunctionContext.getArgument('CornerOffsetY')) || 0;\nconst customX = Number(eventsFunctionContext.getArgument('CustomX')) || 0;\nconst customY = Number(eventsFunctionContext.getArgument('CustomY')) || 0;\nconst alwaysOnTop = eventsFunctionContext.getArgument('AlwaysOnTop') === 'true';\nconst skipTaskbar = eventsFunctionContext.getArgument('SkipTaskbar') === 'true';\nconst clickThrough = eventsFunctionContext.getArgument('ClickThrough') === 'true';\nconst hideMenuBar = eventsFunctionContext.getArgument('HideMenuBar') === 'true';\n\ntry {\n  win.setAlwaysOnTop(alwaysOnTop);\n} catch (e) {}\n\ntry {\n  win.setSkipTaskbar(skipTaskbar);\n} catch (e) {}\n\ntry {\n  if (typeof win.setIgnoreMouseEvents === 'function') {\n    if (clickThrough) win.setIgnoreMouseEvents(true, { forward: true });\n    else win.setIgnoreMouseEvents(false);\n  }\n} catch (e) {}\n\ntry {\n  if (hideMenuBar) {\n    if (typeof win.setAutoHideMenuBar === 'function') win.setAutoHideMenuBar(true);\n    if (typeof win.setMenuBarVisibility === 'function') win.setMenuBarVisibility(false);\n  }\n} catch (e) {}\n\ntry {\n  if (typeof win.setBackgroundColor === 'function') {\n    win.setBackgroundColor('#00000000');\n  }\n} catch (e) {}\n\ntry {\n  if (!screen) {\n    if (position === 'Custom') {\n      win.setPosition(Math.round(customX), Math.round(customY), false);\n    }\n    return;\n  }\n\n  const bounds = win.getBounds();\n  const centerPoint = {\n    x: bounds.x + Math.round(bounds.width / 2),\n    y: bounds.y + Math.round(bounds.height / 2),\n  };\n  const display = screen.getDisplayNearestPoint(centerPoint);\n  const workArea = display && display.workArea ? display.workArea : screen.getPrimaryDisplay().workArea;\n\n  const width = bounds.width;\n  const height = bounds.height;\n\n  let targetX = bounds.x;\n  let targetY = bounds.y;\n\n  if (position === 'TopLeft') {\n    targetX = workArea.x + cornerOffsetX;\n    targetY = workArea.y + cornerOffsetY;\n  } else if (position === 'TopRight') {\n    targetX = workArea.x + workArea.width - width - cornerOffsetX;\n    targetY = workArea.y + cornerOffsetY;\n  } else if (position === 'BottomLeft') {\n    targetX = workArea.x + cornerOffsetX;\n    targetY = workArea.y + workArea.height - height - cornerOffsetY;\n  } else if (position === 'BottomRight') {\n    targetX = workArea.x + workArea.width - width - cornerOffsetX;\n    targetY = workArea.y + workArea.height - height - cornerOffsetY;\n  } else if (position === 'Center') {\n    targetX = workArea.x + Math.round((workArea.width - width) / 2);\n    targetY = workArea.y + Math.round((workArea.height - height) / 2);\n  } else if (position === 'Custom') {\n    targetX = customX;\n    targetY = customY;\n  }\n\n  win.setPosition(Math.round(targetX), Math.round(targetY), false);\n} catch (e) {}",
+          "parameterObjects": "",
+          "useStrict": true,
+          "eventsSheetExpanded": false
+        }
+      ],
+      "parameters": [
+        {
+          "description": "窗口停靠位置",
+          "name": "Position",
+          "supplementaryInformation": "[\"BottomRight\",\"TopRight\",\"BottomLeft\",\"TopLeft\",\"Center\",\"Custom\"]",
+          "type": "stringWithSelector"
+        },
+        {
+          "description": "停靠到角落时的 X 偏移(像素)。TopRight/BottomRight 时为离右边距离；TopLeft/BottomLeft 时为离左边距离。",
+          "name": "CornerOffsetX",
+          "type": "number"
+        },
+        {
+          "description": "停靠到角落时的 Y 偏移(像素)。BottomLeft/BottomRight 时为离下边距离；TopLeft/TopRight 时为离上边距离。",
+          "name": "CornerOffsetY",
+          "type": "number"
+        },
+        {
+          "description": "自定义位置 X(屏幕坐标)。仅当 Position=Custom 时使用。",
+          "name": "CustomX",
+          "type": "number"
+        },
+        {
+          "description": "自定义位置 Y(屏幕坐标)。仅当 Position=Custom 时使用。",
+          "name": "CustomY",
+          "type": "number"
+        },
+        {
+          "description": "窗口是否置顶(always on top)。",
+          "name": "AlwaysOnTop",
+          "type": "yesorno"
+        },
+        {
+          "description": "是否隐藏任务栏图标(skipTaskbar)。",
+          "name": "SkipTaskbar",
+          "type": "yesorno"
+        },
+        {
+          "description": "是否点击穿透(忽略鼠标事件)。",
+          "name": "ClickThrough",
+          "type": "yesorno"
+        },
+        {
+          "description": "是否隐藏菜单栏（仅隐藏菜单栏，不等于无边框）。",
+          "name": "HideMenuBar",
+          "type": "yesorno"
+        }
+      ],
+      "objectGroups": []
+    },
+    {
+      "description": "仅设置窗口位置（不改透明/置顶等）。",
+      "fullName": "设置窗口位置(角落/自定义)",
+      "functionType": "Action",
+      "name": "SetWindowPosition",
+      "sentence": "设置窗口位置：位置 _PARAM1_，角落偏移X _PARAM2_，角落偏移Y _PARAM3_，自定义X _PARAM4_，自定义Y _PARAM5_",
+      "events": [
+        {
+          "type": "BuiltinCommonInstructions::JsCode",
+          "inlineCode": "const renderer = runtimeScene.getGame().getRenderer();\nif (!renderer || typeof renderer.getElectronRemote !== 'function') return;\nconst remote = renderer.getElectronRemote();\nif (!remote) return;\nconst win = remote.getCurrentWindow();\nconst electron = typeof renderer.getElectron === 'function' ? renderer.getElectron() : null;\nconst screen = (electron && electron.screen) || null;\n\nconst position = '' + eventsFunctionContext.getArgument('Position');\nconst cornerOffsetX = Number(eventsFunctionContext.getArgument('CornerOffsetX')) || 0;\nconst cornerOffsetY = Number(eventsFunctionContext.getArgument('CornerOffsetY')) || 0;\nconst customX = Number(eventsFunctionContext.getArgument('CustomX')) || 0;\nconst customY = Number(eventsFunctionContext.getArgument('CustomY')) || 0;\n\ntry {\n  if (!screen) {\n    if (position === 'Custom') {\n      win.setPosition(Math.round(customX), Math.round(customY), false);\n    }\n    return;\n  }\n\n  const bounds = win.getBounds();\n  const centerPoint = {\n    x: bounds.x + Math.round(bounds.width / 2),\n    y: bounds.y + Math.round(bounds.height / 2),\n  };\n  const display = screen.getDisplayNearestPoint(centerPoint);\n  const workArea = display && display.workArea ? display.workArea : screen.getPrimaryDisplay().workArea;\n\n  const width = bounds.width;\n  const height = bounds.height;\n\n  let targetX = bounds.x;\n  let targetY = bounds.y;\n\n  if (position === 'TopLeft') {\n    targetX = workArea.x + cornerOffsetX;\n    targetY = workArea.y + cornerOffsetY;\n  } else if (position === 'TopRight') {\n    targetX = workArea.x + workArea.width - width - cornerOffsetX;\n    targetY = workArea.y + cornerOffsetY;\n  } else if (position === 'BottomLeft') {\n    targetX = workArea.x + cornerOffsetX;\n    targetY = workArea.y + workArea.height - height - cornerOffsetY;\n  } else if (position === 'BottomRight') {\n    targetX = workArea.x + workArea.width - width - cornerOffsetX;\n    targetY = workArea.y + workArea.height - height - cornerOffsetY;\n  } else if (position === 'Center') {\n    targetX = workArea.x + Math.round((workArea.width - width) / 2);\n    targetY = workArea.y + Math.round((workArea.height - height) / 2);\n  } else if (position === 'Custom') {\n    targetX = customX;\n    targetY = customY;\n  }\n\n  win.setPosition(Math.round(targetX), Math.round(targetY), false);\n} catch (e) {}",
+          "parameterObjects": "",
+          "useStrict": true,
+          "eventsSheetExpanded": false
+        }
+      ],
+      "parameters": [
+        {
+          "description": "窗口停靠位置",
+          "name": "Position",
+          "supplementaryInformation": "[\"BottomRight\",\"TopRight\",\"BottomLeft\",\"TopLeft\",\"Center\",\"Custom\"]",
+          "type": "stringWithSelector"
+        },
+        {
+          "description": "停靠到角落时的 X 偏移(像素)。",
+          "name": "CornerOffsetX",
+          "type": "number"
+        },
+        {
+          "description": "停靠到角落时的 Y 偏移(像素)。",
+          "name": "CornerOffsetY",
+          "type": "number"
+        },
+        {
+          "description": "自定义位置 X(屏幕坐标)。仅当 Position=Custom 时使用。",
+          "name": "CustomX",
+          "type": "number"
+        },
+        {
+          "description": "自定义位置 Y(屏幕坐标)。仅当 Position=Custom 时使用。",
+          "name": "CustomY",
+          "type": "number"
+        }
+      ],
+      "objectGroups": []
+    },
+    {
+      "description": "尽力把渲染背景设置为透明（Pixi Renderer + HTML 背景）。",
+      "fullName": "设置渲染背景透明",
+      "functionType": "Action",
+      "name": "SetTransparentBackground",
+      "sentence": "设置渲染背景透明",
+      "events": [
+        {
+          "type": "BuiltinCommonInstructions::JsCode",
+          "inlineCode": "const renderer = runtimeScene.getGame().getRenderer();\n\nconst setTransparentStyle = (el) => {\n  if (!el || !el.style) return;\n  el.style.background = 'transparent';\n  el.style.backgroundColor = 'transparent';\n};\n\ntry {\n  if (renderer && typeof renderer.getPIXIRenderer === 'function') {\n    const pixiRenderer = renderer.getPIXIRenderer();\n    if (pixiRenderer) {\n      if (pixiRenderer.backgroundAlpha !== undefined) pixiRenderer.backgroundAlpha = 0;\n      if (pixiRenderer.background && pixiRenderer.background.alpha !== undefined) pixiRenderer.background.alpha = 0;\n      if (pixiRenderer.background && pixiRenderer.background.color !== undefined) pixiRenderer.background.color = 0x000000;\n      if (pixiRenderer.backgroundColor !== undefined) pixiRenderer.backgroundColor = 0x000000;\n    }\n  }\n} catch (e) {}\n\ntry {\n  const html = document.documentElement;\n  const body = document.body;\n  setTransparentStyle(html);\n  setTransparentStyle(body);\n\n  const canvas = renderer && typeof renderer.getCanvas === 'function' ? renderer.getCanvas() : null;\n  const domContainer = renderer && typeof renderer.getDomElementContainer === 'function' ? renderer.getDomElementContainer() : null;\n\n  setTransparentStyle(canvas);\n  setTransparentStyle(domContainer);\n\n  let parent = canvas && canvas.parentElement ? canvas.parentElement : null;\n  for (let i = 0; parent && i < 8; i++) {\n    setTransparentStyle(parent);\n    parent = parent.parentElement;\n  }\n} catch (e) {}\n\ntry {\n  if (renderer && typeof renderer.getElectronRemote === 'function') {\n    const remote = renderer.getElectronRemote();\n    if (remote) {\n      const win = remote.getCurrentWindow();\n      if (win && typeof win.setBackgroundColor === 'function') {\n        win.setBackgroundColor('#00000000');\n      }\n    }\n  }\n} catch (e) {}\n\ntry {\n  if (typeof gdjs !== 'undefined' && !gdjs.__desktopPetTransparentHook) {\n    gdjs.__desktopPetTransparentHook = true;\n    gdjs.callbacksRuntimeScenePostEvents.push(function (scene) {\n      try {\n        if (typeof scene.setClearCanvas === 'function') scene.setClearCanvas(false);\n        else if (scene._clearCanvas !== undefined) scene._clearCanvas = false;\n\n        const r = scene.getGame().getRenderer();\n        const pr = r && typeof r.getPIXIRenderer === 'function' ? r.getPIXIRenderer() : null;\n        if (pr) {\n          if (pr.background && pr.background.alpha !== undefined) pr.background.alpha = 0;\n          if (pr.background && pr.background.color !== undefined) pr.background.color = 0x000000;\n          if (pr.backgroundAlpha !== undefined) pr.backgroundAlpha = 0;\n          if (pr.backgroundColor !== undefined) pr.backgroundColor = 0x000000;\n          if (typeof pr.clear === 'function') pr.clear();\n        }\n      } catch (e) {}\n    });\n  }\n} catch (e) {}",
+          "parameterObjects": "",
+          "useStrict": true,
+          "eventsSheetExpanded": false
+        }
+      ],
+      "parameters": [],
+      "objectGroups": []
+    },
+    {
+      "description": "给预览模式设置一个“棋盘格”页面背景，用来肉眼验证画布是否真的透明。不会影响导出后的桌面窗口（可按需只在预览时调用）。",
+      "fullName": "设置预览测试背景(棋盘格)",
+      "functionType": "Action",
+      "name": "SetPreviewTestBackground",
+      "sentence": "设置预览测试背景(棋盘格)",
+      "events": [
+        {
+          "type": "BuiltinCommonInstructions::JsCode",
+          "inlineCode": "const renderer = runtimeScene.getGame().getRenderer();\n\nconst applyChecker = (el) => {\n  if (!el || !el.style) return;\n  el.style.backgroundColor = '#ffffff';\n  el.style.backgroundImage =\n    'linear-gradient(45deg, rgba(0,0,0,0.18) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.18) 75%, rgba(0,0,0,0.18)), linear-gradient(45deg, rgba(0,0,0,0.18) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.18) 75%, rgba(0,0,0,0.18))';\n  el.style.backgroundSize = '20px 20px';\n  el.style.backgroundPosition = '0 0, 10px 10px';\n};\n\ntry {\n  const cssId = '__desktopPetCheckerStyle';\n  const css = `\nhtml, body { height: 100% !important; min-height: 100% !important; margin: 0 !important; overflow: hidden !important; background-color: #ffffff !important; background-image: linear-gradient(45deg, rgba(0,0,0,0.18) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.18) 75%, rgba(0,0,0,0.18)), linear-gradient(45deg, rgba(0,0,0,0.18) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.18) 75%, rgba(0,0,0,0.18)) !important; background-size: 20px 20px !important; background-position: 0 0, 10px 10px !important; }\ncanvas { background: transparent !important; background-color: transparent !important; }\n`;\n  let style = document.getElementById(cssId);\n  if (!style) {\n    style = document.createElement('style');\n    style.id = cssId;\n    style.textContent = css;\n    document.head.appendChild(style);\n  } else {\n    style.textContent = css;\n  }\n} catch (e) {}\n\ntry {\n  const html = document.documentElement;\n  const body = document.body;\n  applyChecker(html);\n  applyChecker(body);\n\n  const canvas = renderer && typeof renderer.getCanvas === 'function' ? renderer.getCanvas() : null;\n  const domContainer = renderer && typeof renderer.getDomElementContainer === 'function' ? renderer.getDomElementContainer() : null;\n\n  if (canvas && canvas.style) {\n    canvas.style.background = 'transparent';\n    canvas.style.backgroundColor = 'transparent';\n  }\n\n  if (domContainer && domContainer.style) {\n    domContainer.style.background = 'transparent';\n    domContainer.style.backgroundColor = 'transparent';\n  }\n\n  let parent = canvas && canvas.parentElement ? canvas.parentElement : null;\n  for (let i = 0; parent && i < 16; i++) {\n    applyChecker(parent);\n    parent = parent.parentElement;\n  }\n} catch (e) {}",
+          "parameterObjects": "",
+          "useStrict": true,
+          "eventsSheetExpanded": false
+        }
+      ],
+      "parameters": [],
+      "objectGroups": []
+    }
+  ],
+  "eventsFunctionsFolderStructure": {
+    "folderName": "__ROOT"
+  },
+  "eventsBasedBehaviors": [],
+  "eventsBasedObjects": []
+}
